@@ -228,6 +228,12 @@ void PlatformScreenLoggingWrapper::fakeInputEnd()
     screen_->fakeInputEnd();
 }
 
+void PlatformScreenLoggingWrapper::setKeyboardInputSuppressed(bool suppressed)
+{
+    LOG_DEBUG1("PlatformScreen::setKeyboardInputSuppressed() suppressed=%d", suppressed);
+    screen_->setKeyboardInputSuppressed(suppressed);
+}
+
 std::int32_t PlatformScreenLoggingWrapper::getJumpZoneSize() const
 {
     auto result = screen_->getJumpZoneSize();

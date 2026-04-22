@@ -71,6 +71,11 @@ PrimaryClient::fakeInputEnd()
     }
 }
 
+void PrimaryClient::setKeyboardInputSuppressed(bool suppressed)
+{
+    m_screen->setKeyboardInputSuppressed(suppressed);
+}
+
 std::int32_t PrimaryClient::getJumpZoneSize() const
 {
     return m_screen->getJumpZoneSize();
@@ -85,6 +90,11 @@ KeyModifierMask
 PrimaryClient::getToggleMask() const
 {
     return m_screen->pollActiveModifiers();
+}
+
+void PrimaryClient::pollPressedKeys(IKeyState::KeyButtonSet& pressedKeys) const
+{
+    m_screen->getPlatformScreen()->pollPressedKeys(pressedKeys);
 }
 
 bool

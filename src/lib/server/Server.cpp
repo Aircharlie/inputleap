@@ -63,6 +63,8 @@ Server::Server(
 	m_mock(false),
 	m_primaryClient(primaryClient),
 	m_active(primaryClient),
+	m_keyboardTarget(primaryClient),
+    m_keyboardFollowsMouse(true),
 	m_seqNum(0),
 	m_xDelta(0),
 	m_yDelta(0),
@@ -117,6 +119,8 @@ Server::Server(
 		clipboard.m_clipboardData   = clipboard.m_clipboard.marshall();
 	}
 
+	updatePrimaryKeyboardSuppression();
+
     // install event handlers
     m_events->add_handler(EventType::TIMER, this,
                           [this](const auto& e){ handle_switch_wait_event(); });
@@ -147,6 +151,10 @@ Server::Server(
                           [this](const auto& e){ handle_screensaver_deactivated_event(); });
     m_events->add_handler(EventType::SERVER_SWITCH_TO_SCREEN, &input_filter_,
                           [this](const auto& e){ handle_switch_to_screen_event(e); });
+    m_events->add_handler(EventType::SERVER_SWITCH_KEYBOARD_TO_SCREEN, &input_filter_,
+                          [this](const auto& e){ handle_switch_keyboard_to_screen_event(e); });
+    m_events->add_handler(EventType::SERVER_FOLLOW_MOUSE_FOR_KEYBOARD, &input_filter_,
+                          [this](const auto& e){ handle_follow_mouse_for_keyboard_event(); });
     m_events->add_handler(EventType::SERVER_TOGGLE_SCREEN, &input_filter_,
                           [this](const auto& e){ handle_toggle_screen_event(e); });
     m_events->add_handler(EventType::SERVER_SWITCH_INDIRECTION, &input_filter_,
@@ -202,6 +210,8 @@ Server::~Server()
     m_events->remove_handler(EventType::PRIMARY_SCREEN_WHEEL, m_primaryClient->get_event_target());
     m_events->remove_handler(EventType::PRIMARY_SCREEN_SAVER_ACTIVATED, m_primaryClient->get_event_target());
     m_events->remove_handler(EventType::PRIMARY_SCREEN_SAVER_DEACTIVATED, m_primaryClient->get_event_target());
+    m_events->remove_handler(EventType::SERVER_SWITCH_KEYBOARD_TO_SCREEN, &input_filter_);
+    m_events->remove_handler(EventType::SERVER_FOLLOW_MOUSE_FOR_KEYBOARD, &input_filter_);
     m_events->remove_handler(EventType::PRIMARY_SCREEN_FAKE_INPUT_BEGIN, &input_filter_);
     m_events->remove_handler(EventType::PRIMARY_SCREEN_FAKE_INPUT_END, &input_filter_);
     m_events->remove_handler(EventType::TIMER, this);
@@ -447,6 +457,11 @@ void Server::switchScreen(BaseClientProxy* dst, std::int32_t x, std::int32_t y, 
 
 		// cut over
 		m_active = dst;
+        if (m_keyboardFollowsMouse) {
+            m_keyboardTarget = dst;
+            m_pressedKeys.clear();
+        }
+        updatePrimaryKeyboardSuppression();
 
 		// increment enter sequence number
 		++m_seqNum;
@@ -489,6 +504,66 @@ Server::jumpToScreen(BaseClientProxy* newScreen)
 	newScreen->getJumpCursorPos(x, y);
 
 	switchScreen(newScreen, x, y, false);
+}
+
+void Server::switchKeyboardScreen(BaseClientProxy* dst)
+{
+    assert(dst != nullptr);
+
+    m_keyboardFollowsMouse = false;
+    if (m_keyboardTarget == dst) {
+        return;
+    }
+
+    BaseClientProxy* oldTarget = m_keyboardTarget;
+    releaseKeyboardTargetKeys(oldTarget);
+    m_keyboardTarget = dst;
+    m_pressedKeys.clear();
+    updatePrimaryKeyboardSuppression();
+
+    LOG_INFO("switch keyboard from \"%s\" to \"%s\"",
+             getName(oldTarget == nullptr ? m_primaryClient : oldTarget).c_str(), getName(dst).c_str());
+}
+
+void Server::followMouseForKeyboard()
+{
+    m_keyboardFollowsMouse = true;
+    if (m_keyboardTarget == m_active) {
+        return;
+    }
+
+    BaseClientProxy* oldTarget = m_keyboardTarget;
+    releaseKeyboardTargetKeys(oldTarget);
+    m_keyboardTarget = m_active;
+    m_pressedKeys.clear();
+    updatePrimaryKeyboardSuppression();
+
+    LOG_INFO("keyboard now follows mouse on \"%s\"", getName(m_active).c_str());
+}
+
+void Server::releaseKeyboardTargetKeys(BaseClientProxy* target)
+{
+    if (target == nullptr || m_pressedKeys.empty()) {
+        return;
+    }
+
+    IKeyState::KeyButtonSet pressedButtons;
+    m_primaryClient->pollPressedKeys(pressedButtons);
+
+    for (const auto& [button, keyInfo] : m_pressedKeys) {
+        if (pressedButtons.count(button) != 0) {
+            target->keyUp(keyInfo.m_key, keyInfo.m_mask, keyInfo.m_button);
+        }
+    }
+}
+
+void Server::updatePrimaryKeyboardSuppression()
+{
+    const bool suppressPrimaryKeyboard =
+        (m_active == m_primaryClient &&
+         m_keyboardTarget != nullptr &&
+         m_keyboardTarget != m_primaryClient);
+    m_primaryClient->setKeyboardInputSuppressed(suppressPrimaryKeyboard);
 }
 
 float Server::mapToFraction(BaseClientProxy* client, EDirection dir, std::int32_t x,
@@ -1330,6 +1405,24 @@ void Server::handle_switch_to_screen_event(const Event& event)
 	}
 }
 
+void Server::handle_switch_keyboard_to_screen_event(const Event& event)
+{
+    const auto& info = event.get_data_as<SwitchKeyboardToScreenInfo>();
+
+    auto index = m_clients.find(info.m_screen);
+    if (index == m_clients.end()) {
+        LOG_DEBUG1("screen \"%s\" not active", info.m_screen.c_str());
+    }
+    else {
+        switchKeyboardScreen(index->second);
+    }
+}
+
+void Server::handle_follow_mouse_for_keyboard_event()
+{
+    followMouseForKeyboard();
+}
+
 void
 Server::handle_toggle_screen_event(const Event& event)
 {
@@ -1555,11 +1648,12 @@ Server::onKeyDown(KeyID id, KeyModifierMask mask, KeyButton button,
 				const char* screens)
 {
 	LOG_DEBUG1("onKeyDown id=%d mask=0x%04x button=0x%04x", id, mask, button);
-	assert(m_active != nullptr);
+	assert(m_keyboardTarget != nullptr);
 
 	// relay
 	if (!m_keyboardBroadcasting && IKeyState::KeyInfo::isDefault(screens)) {
-		m_active->keyDown(id, mask, button);
+		m_keyboardTarget->keyDown(id, mask, button);
+        m_pressedKeys[button] = IKeyState::KeyInfo{id, mask, button, 1};
 	}
 	else {
 		if (!screens && m_keyboardBroadcasting) {
@@ -1581,11 +1675,12 @@ Server::onKeyUp(KeyID id, KeyModifierMask mask, KeyButton button,
 				const char* screens)
 {
 	LOG_DEBUG1("onKeyUp id=%d mask=0x%04x button=0x%04x", id, mask, button);
-	assert(m_active != nullptr);
+	assert(m_keyboardTarget != nullptr);
 
 	// relay
 	if (!m_keyboardBroadcasting && IKeyState::KeyInfo::isDefault(screens)) {
-		m_active->keyUp(id, mask, button);
+		m_keyboardTarget->keyUp(id, mask, button);
+        m_pressedKeys.erase(button);
 	}
 	else {
 		if (!screens && m_keyboardBroadcasting) {
@@ -1605,10 +1700,10 @@ Server::onKeyUp(KeyID id, KeyModifierMask mask, KeyButton button,
 void Server::onKeyRepeat(KeyID id, KeyModifierMask mask, std::int32_t count, KeyButton button)
 {
 	LOG_DEBUG1("onKeyRepeat id=%d mask=0x%04x count=%d button=0x%04x", id, mask, count, button);
-	assert(m_active != nullptr);
+	assert(m_keyboardTarget != nullptr);
 
 	// relay
-	m_active->keyRepeat(id, mask, count, button);
+	m_keyboardTarget->keyRepeat(id, mask, count, button);
 }
 
 void
@@ -2168,6 +2263,11 @@ Server::forceLeaveClient(BaseClientProxy* client)
 
 		// cut over
 		m_active = m_primaryClient;
+        if (m_keyboardFollowsMouse) {
+            m_keyboardTarget = m_primaryClient;
+            m_pressedKeys.clear();
+        }
+        updatePrimaryKeyboardSuppression();
 
 		// enter new screen (unless we already have because of the
 		// screen saver)
@@ -2187,6 +2287,13 @@ Server::forceLeaveClient(BaseClientProxy* client)
 	if (m_activeSaver == client) {
 		m_activeSaver = nullptr;
 	}
+
+    if (m_keyboardTarget == client) {
+        m_keyboardTarget = m_active;
+        m_pressedKeys.clear();
+        m_keyboardFollowsMouse = true;
+        updatePrimaryKeyboardSuppression();
+    }
 
 	// tell primary client about the active sides
 	m_primaryClient->reconfigure(getActivePrimarySides());

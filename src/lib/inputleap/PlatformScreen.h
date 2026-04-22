@@ -66,6 +66,7 @@ public:
         { throw std::runtime_error("getDropTarget not implemented"); }
     void setDropTarget(const std::string&) override
         { throw std::runtime_error("setDropTarget not implemented"); }
+    void setKeyboardInputSuppressed(bool suppressed) override;
 
     bool fakeMediaKey(KeyID id) override;
 

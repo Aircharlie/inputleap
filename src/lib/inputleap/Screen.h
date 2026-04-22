@@ -219,6 +219,9 @@ public:
     */
     void fakeInputEnd();
 
+    //! Suppress or allow local keyboard delivery on the primary screen
+    void setKeyboardInputSuppressed(bool suppressed);
+
     //! Change dragging status
     void setDraggingStarted(bool started);
 

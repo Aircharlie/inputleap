@@ -68,6 +68,7 @@ public:
     void unregisterHotKey(std::uint32_t id) override;
     void fakeInputBegin() override;
     void fakeInputEnd() override;
+    void setKeyboardInputSuppressed(bool suppressed) override;
     std::int32_t getJumpZoneSize() const override;
     bool isAnyMouseButtonDown(std::uint32_t& buttonID) const override;
     void getCursorCenter(std::int32_t& x, std::int32_t& y) const override;

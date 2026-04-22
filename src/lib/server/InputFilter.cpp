@@ -335,6 +335,54 @@ InputFilter::SwitchToScreenAction::perform(IEventQueue* queue, const Event& even
                         Event::kDeliverImmediately);
 }
 
+InputFilter::SwitchKeyboardToScreenAction::SwitchKeyboardToScreenAction(const std::string& screen) :
+    m_screen(screen)
+{
+}
+
+std::string InputFilter::SwitchKeyboardToScreenAction::getScreen() const
+{
+    return m_screen;
+}
+
+InputFilter::Action*
+InputFilter::SwitchKeyboardToScreenAction::clone() const
+{
+    return new SwitchKeyboardToScreenAction(*this);
+}
+
+std::string InputFilter::SwitchKeyboardToScreenAction::format() const
+{
+    return inputleap::string::sprintf("switchKeyboardToScreen(%s)", m_screen.c_str());
+}
+
+void
+InputFilter::SwitchKeyboardToScreenAction::perform(IEventQueue* queue, const Event& event)
+{
+    Server::SwitchKeyboardToScreenInfo info{m_screen};
+    queue->add_event(EventType::SERVER_SWITCH_KEYBOARD_TO_SCREEN, event.getTarget(),
+                     create_event_data<Server::SwitchKeyboardToScreenInfo>(info),
+                     Event::kDeliverImmediately);
+}
+
+InputFilter::Action*
+InputFilter::FollowMouseForKeyboardAction::clone() const
+{
+    return new FollowMouseForKeyboardAction(*this);
+}
+
+std::string InputFilter::FollowMouseForKeyboardAction::format() const
+{
+    return "followMouseForKeyboard";
+}
+
+void
+InputFilter::FollowMouseForKeyboardAction::perform(IEventQueue* queue, const Event& event)
+{
+    queue->add_event(EventType::SERVER_FOLLOW_MOUSE_FOR_KEYBOARD, event.getTarget(), nullptr,
+                     Event::kDeliverImmediately);
+}
+
 InputFilter::Action*
 InputFilter::ToggleScreenAction::clone() const
 {

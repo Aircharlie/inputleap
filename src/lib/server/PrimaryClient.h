@@ -20,6 +20,7 @@
 
 #include "server/BaseClientProxy.h"
 #include "inputleap/Fwd.h"
+#include "inputleap/IKeyState.h"
 #include "inputleap/protocol_types.h"
 
 namespace inputleap {
@@ -81,6 +82,9 @@ public:
     */
     void fakeInputEnd();
 
+    //! Suppress or allow local keyboard delivery on the primary screen
+    void setKeyboardInputSuppressed(bool suppressed);
+
     //@}
     //! @name accessors
     //@{
@@ -105,6 +109,9 @@ public:
     Returns the primary screen's current toggle modifier key state.
     */
     virtual KeyModifierMask getToggleMask() const;
+
+    //! Get currently pressed physical keys from the OS
+    void pollPressedKeys(IKeyState::KeyButtonSet& pressedKeys) const;
 
     //! Get screen lock state
     /*!

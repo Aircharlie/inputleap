@@ -343,6 +343,12 @@ Screen::fakeInputEnd()
     m_screen->fakeInputEnd();
 }
 
+void Screen::setKeyboardInputSuppressed(bool suppressed)
+{
+    assert(m_isPrimary);
+    m_screen->setKeyboardInputSuppressed(suppressed);
+}
+
 bool
 Screen::isOnScreen() const
 {

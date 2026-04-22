@@ -71,6 +71,7 @@ public:
     virtual void unregisterHotKey(std::uint32_t id);
     virtual void fakeInputBegin();
     virtual void fakeInputEnd();
+    virtual void setKeyboardInputSuppressed(bool suppressed);
     virtual std::int32_t getJumpZoneSize() const;
     virtual bool isAnyMouseButtonDown(std::uint32_t& buttonID) const;
     virtual void getCursorCenter(std::int32_t& x, std::int32_t& y) const;
@@ -250,6 +251,10 @@ private:
 
     // true if mouse has entered the screen
     bool m_isOnScreen;
+
+    // true if local key events should be swallowed while still being
+    // reported to InputLeap.
+    bool m_suppressLocalKeyboardInput;
 
     // IOKit power management assertion, refreshed on every enter()
     IOPMAssertionID assertionID;

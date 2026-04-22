@@ -174,6 +174,14 @@ enum class EventType : std::uint32_t {
     */
     SERVER_SWITCH_TO_SCREEN,
 
+    /** This event is sent to inform the server to switch only the keyboard target.
+        The event data an instance of SwitchKeyboardToScreenInfo that indicates the target screen.
+    */
+    SERVER_SWITCH_KEYBOARD_TO_SCREEN,
+
+    /// This event is sent to inform the server to make the keyboard follow the active mouse screen again.
+    SERVER_FOLLOW_MOUSE_FOR_KEYBOARD,
+
     /// This event is sent to inform the server to toggle screens.  These is no event data.
     SERVER_TOGGLE_SCREEN,
 

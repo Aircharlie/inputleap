@@ -1131,6 +1131,30 @@ void Config::parseAction(ConfigReadContext& s, const std::string& name,
         action = new InputFilter::SwitchToScreenAction(screen);
 	}
 
+    else if (name == "switchKeyboardToScreen") {
+        if (args.size() != 1) {
+            throw XConfigRead(s, "syntax for action: switchKeyboardToScreen(name)");
+        }
+
+        std::string screen = args[0];
+        if (isScreen(screen)) {
+            screen = getCanonicalName(screen);
+        }
+        else if (!screen.empty()) {
+            throw XConfigRead(s, "unknown screen name in switchKeyboardToScreen");
+        }
+
+        action = new InputFilter::SwitchKeyboardToScreenAction(screen);
+    }
+
+    else if (name == "followMouseForKeyboard") {
+        if (!args.empty()) {
+            throw XConfigRead(s, "syntax for action: followMouseForKeyboard");
+        }
+
+        action = new InputFilter::FollowMouseForKeyboardAction();
+    }
+
   else if (name == "toggleScreen") {
     action = new InputFilter::ToggleScreenAction();
   }

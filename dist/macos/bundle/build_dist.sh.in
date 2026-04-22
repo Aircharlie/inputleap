@@ -14,10 +14,10 @@ B_INPUTLEAPC="InputLeap.app/Contents/MacOS/input-leapc"
 B_INPUTLEAPS="InputLeap.app/Contents/MacOS/input-leaps"
 
 # Colorized output
-info() { tput bold; echo "$@"; tput sgr0 ; }
-error() { tput bold; tput setaf 1; echo "$@"; tput sgr0 ; }
-success() { tput bold; tput setaf 2; echo "$@"; tput sgr0 ; }
-warn() { tput bold; tput setaf 3; echo "$@"; tput sgr0 ; }
+info() { tput bold >/dev/null 2>&1 || true; echo "$@"; tput sgr0 >/dev/null 2>&1 || true; }
+error() { tput bold >/dev/null 2>&1 || true; tput setaf 1 >/dev/null 2>&1 || true; echo "$@"; tput sgr0 >/dev/null 2>&1 || true; }
+success() { tput bold >/dev/null 2>&1 || true; tput setaf 2 >/dev/null 2>&1 || true; echo "$@"; tput sgr0 >/dev/null 2>&1 || true; }
+warn() { tput bold >/dev/null 2>&1 || true; tput setaf 3 >/dev/null 2>&1 || true; echo "$@"; tput sgr0 >/dev/null 2>&1 || true; }
 
 info "Checking for bundle contents"
 if [ ! -d "InputLeap.app/Contents" ]; then
@@ -36,11 +36,13 @@ info "Copying binaries into bundle"
 cp -r "$B_BINDIR" "$B_MACOS" || exit 1
 
 DEPLOYQT=@QT_DEPLOY_TOOL@
+DEPLOYQT_LIBPATHS="-libpath=/opt/homebrew/lib -libpath=/opt/homebrew/opt/qt/lib"
 
 # Use macdeployqt to include libraries and create dmg
 if [ "$B_BUILDTYPE" = "Release" ]; then
     info "Building Release disk image (dmg)"
     "$DEPLOYQT" InputLeap.app -dmg \
+    $DEPLOYQT_LIBPATHS \
     -executable="$B_INPUTLEAPC" \
     -executable="$B_INPUTLEAPS" || exit 1
     mv "InputLeap.dmg" "InputLeap-$B_VERSION.dmg" || exit 1
@@ -49,6 +51,7 @@ else
     warn "Disk image (dmg) only created for Release builds"
     info "Building debug bundle"
     "$DEPLOYQT" InputLeap.app -no-strip \
+    $DEPLOYQT_LIBPATHS \
     -executable="$B_INPUTLEAPC" \
     -executable="$B_INPUTLEAPS" || exit 1
     success "Bundle created successfully"

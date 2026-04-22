@@ -145,6 +145,14 @@ public:
     */
     virtual void fakeInputEnd() = 0;
 
+    //! Suppress or allow local keyboard delivery on the primary screen
+    /*!
+    When suppressed, the primary screen should continue reporting keyboard
+    input to InputLeap, but the local OS should not deliver those key events
+    to foreground applications.
+    */
+    virtual void setKeyboardInputSuppressed(bool suppressed) = 0;
+
     //@}
     //! @name accessors
     //@{

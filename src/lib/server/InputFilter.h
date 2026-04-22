@@ -164,6 +164,31 @@ public:
         std::string m_screen;
     };
 
+    // SwitchKeyboardToScreenAction
+    class SwitchKeyboardToScreenAction : public Action {
+    public:
+        SwitchKeyboardToScreenAction(const std::string& screen);
+
+        std::string getScreen() const;
+
+        // Action overrides
+        Action* clone() const override;
+        std::string format() const override;
+        void perform(IEventQueue* queue, const Event& event) override;
+
+    private:
+        std::string m_screen;
+    };
+
+    // FollowMouseForKeyboardAction
+    class FollowMouseForKeyboardAction : public Action {
+    public:
+        // Action overrides
+        Action* clone() const override;
+        std::string format() const override;
+        void perform(IEventQueue* queue, const Event& event) override;
+    };
+
     // ToggleScreenAction
     class ToggleScreenAction : public Action {
     public:

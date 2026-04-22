@@ -127,4 +127,9 @@ bool PlatformScreen::fakeMediaKey(KeyID id)
     return false;
 }
 
+void PlatformScreen::setKeyboardInputSuppressed(bool suppressed)
+{
+    (void)suppressed;
+}
+
 } // namespace inputleap

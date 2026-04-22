@@ -70,6 +70,7 @@ bool					OSXScreen::s_hasGHOM	    = false;
 OSXScreen::OSXScreen(IEventQueue* events, bool isPrimary, bool autoShowHideCursor) :
 	m_isPrimary(isPrimary),
 	m_isOnScreen(m_isPrimary),
+	m_suppressLocalKeyboardInput(false),
 	m_cursorPosValid(false),
 	MouseButtonEventMap(NumButtonIDs),
 	m_cursorHidden(false),
@@ -261,6 +262,11 @@ void
 OSXScreen::fakeInputEnd()
 {
 	// FIXME -- not implemented
+}
+
+void OSXScreen::setKeyboardInputSuppressed(bool suppressed)
+{
+	m_suppressLocalKeyboardInput = suppressed;
 }
 
 std::int32_t OSXScreen::getJumpZoneSize() const
@@ -1884,6 +1890,9 @@ OSXScreen::handleCGInputEvent(CGEventTapProxy proxy,
 		case kCGEventKeyUp:
 		case kCGEventFlagsChanged:
 			screen->onKey(event);
+			if (screen->m_suppressLocalKeyboardInput) {
+				return nullptr;
+			}
 			break;
 		case kCGEventTapDisabledByTimeout:
 			// Re-enable our event-tap

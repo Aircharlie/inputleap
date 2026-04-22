@@ -22,6 +22,7 @@
 #include "inputleap/clipboard_types.h"
 #include "inputleap/Clipboard.h"
 #include "inputleap/key_types.h"
+#include "inputleap/IKeyState.h"
 #include "inputleap/mouse_types.h"
 #include "inputleap/Fwd.h"
 #include "inputleap/INode.h"
@@ -63,6 +64,17 @@ public:
     class SwitchToScreenInfo {
     public:
         SwitchToScreenInfo(const std::string& screen) :
+            m_screen{screen}
+        {}
+
+    public:
+        std::string m_screen;
+    };
+
+    //! Switch keyboard to screen data
+    class SwitchKeyboardToScreenInfo {
+    public:
+        SwitchKeyboardToScreenInfo(const std::string& screen) :
             m_screen{screen}
         {}
 
@@ -212,6 +224,18 @@ private:
     // jump to screen
     void jumpToScreen(BaseClientProxy*);
 
+    // change keyboard-only target
+    void switchKeyboardScreen(BaseClientProxy*);
+
+    // make keyboard follow the active mouse screen again
+    void followMouseForKeyboard();
+
+    // flush pressed keys from current keyboard target before retargeting
+    void releaseKeyboardTargetKeys(BaseClientProxy* target);
+
+    // update whether the primary screen should swallow local keyboard input
+    void updatePrimaryKeyboardSuppression();
+
     // convert pixel position to fraction, using x or y depending on the
     // direction.
     float mapToFraction(BaseClientProxy*, EDirection, std::int32_t x, std::int32_t y) const;
@@ -310,6 +334,8 @@ private:
     void handle_client_disconnected(BaseClientProxy* client);
     void handle_client_close_timeout(BaseClientProxy* client);
     void handle_switch_to_screen_event(const Event& event);
+    void handle_switch_keyboard_to_screen_event(const Event& event);
+    void handle_follow_mouse_for_keyboard_event();
     void handle_toggle_screen_event(const Event& event);
     void handle_switch_in_direction_event(const Event& event);
     void handle_keyboard_broadcast_event(const Event& event);
@@ -400,6 +426,9 @@ private:
 
     // the client with focus
     BaseClientProxy* m_active;
+    BaseClientProxy* m_keyboardTarget;
+    bool m_keyboardFollowsMouse;
+    std::map<KeyButton, IKeyState::KeyInfo> m_pressedKeys;
 
     // the sequence number of enter messages
     std::uint32_t m_seqNum;
