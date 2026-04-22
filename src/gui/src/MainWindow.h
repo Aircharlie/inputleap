@@ -138,6 +138,7 @@ public slots:
         void createTrayIcon();
         void loadSettings();
         void saveSettings();
+        void cleanupStaleDesktopProcess(const QString& app);
         void set_icon(AppConnectionState state);
         void set_connection_state(AppConnectionState state);
         bool clientArgs(QStringList& args, QString& app);
@@ -193,6 +194,7 @@ public slots:
         SslCertificate* m_pSslCertificate;
         QStringList m_PendingClientNames;
         LogWindow *m_pLogWindow;
+        bool m_RestartPending = false;
 
         bool m_fingerprint_expanded = false;
 

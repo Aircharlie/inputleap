@@ -75,6 +75,55 @@ static const QString APP_CONFIG_FILTER(QObject::tr("InputLeap Configurations (*.
 static const QString APP_CONFIG_OPEN_FILTER(APP_CONFIG_FILTER + ";;" + allFilesFilter);
 static const QString APP_CONFIG_SAVE_FILTER(APP_CONFIG_FILTER);
 
+#if SYSAPI_UNIX
+QString runCommandAndReadStdout(const QString& program, const QStringList& args)
+{
+    QProcess process;
+    process.start(program, args);
+    if (!process.waitForFinished(2000)) {
+        process.kill();
+        process.waitForFinished(1000);
+        return {};
+    }
+    return QString::fromUtf8(process.readAllStandardOutput()).trimmed();
+}
+
+QList<qint64> listeningPids(quint16 port)
+{
+    const auto output = runCommandAndReadStdout(
+        "/usr/sbin/lsof",
+        {"-nP", QString("-iTCP:%1").arg(port), "-sTCP:LISTEN", "-t"});
+
+    QList<qint64> pids;
+    for (const auto& line : output.split('\n', Qt::SkipEmptyParts)) {
+        bool ok = false;
+        const qint64 pid = line.trimmed().toLongLong(&ok);
+        if (ok) {
+            pids.push_back(pid);
+        }
+    }
+    return pids;
+}
+
+QString processCommandLine(qint64 pid)
+{
+    return runCommandAndReadStdout("/bin/ps", {"-p", QString::number(pid), "-o", "command="});
+}
+
+bool waitForProcessExit(qint64 pid, int timeoutMs)
+{
+    QElapsedTimer timer;
+    timer.start();
+    while (timer.elapsed() < timeoutMs) {
+        if (::kill(static_cast<pid_t>(pid), 0) != 0) {
+            return true;
+        }
+        QThread::msleep(100);
+    }
+    return ::kill(static_cast<pid_t>(pid), 0) != 0;
+}
+#endif
+
 const char* icon_file_for_connection_state(AppConnectionState state)
 {
 #if defined(Q_OS_MAC)
@@ -551,8 +600,13 @@ void MainWindow::checkFingerprint(const QString& line)
 
 void MainWindow::restart_cmd_app()
 {
+    m_RestartPending = true;
     stop_cmd_app();
-    start_cmd_app();
+
+    if (appConfig().processMode() != Desktop || cmd_app_process_ == nullptr) {
+        m_RestartPending = false;
+        QTimer::singleShot(250, this, &MainWindow::start_cmd_app);
+    }
 }
 
 void MainWindow::proofreadInfo()
@@ -560,6 +614,37 @@ void MainWindow::proofreadInfo()
     AppConnectionState old = connection_state_;
     connection_state_ = AppConnectionState::DISCONNECTED;
     set_connection_state(old);
+}
+
+void MainWindow::cleanupStaleDesktopProcess(const QString& app)
+{
+#if SYSAPI_UNIX
+    if (app_role() != AppRole::Server) {
+        return;
+    }
+
+    const auto pids = listeningPids(appConfig().port());
+    for (const qint64 pid : pids) {
+        if (pid == QCoreApplication::applicationPid()) {
+            continue;
+        }
+
+        const auto command = processCommandLine(pid);
+        if (!command.startsWith(app)) {
+            continue;
+        }
+
+        appendLogInfo(QString("stopping stale helper pid %1").arg(pid));
+        ::kill(static_cast<pid_t>(pid), SIGTERM);
+        if (!waitForProcessExit(pid, 3000)) {
+            appendLogInfo(QString("force killing stale helper pid %1").arg(pid));
+            ::kill(static_cast<pid_t>(pid), SIGKILL);
+            waitForProcessExit(pid, 2000);
+        }
+    }
+#else
+    Q_UNUSED(app);
+#endif
 }
 
 void MainWindow::start_cmd_app()
@@ -579,11 +664,7 @@ void MainWindow::start_cmd_app()
 
     args << "--name" << getScreenName();
 
-    if (desktopMode)
-    {
-        cmd_app_process_ = new QProcess(this);
-    }
-    else
+    if (!desktopMode)
     {
         // tell client/server to talk to daemon through ipc.
         args << "--ipc";
@@ -629,6 +710,11 @@ void MainWindow::start_cmd_app()
     {
         stop_cmd_app();
         return;
+    }
+
+    if (desktopMode) {
+        cleanupStaleDesktopProcess(app);
+        cmd_app_process_ = new QProcess(this);
     }
 
     if (desktopMode)
@@ -862,8 +948,14 @@ void MainWindow::stopDesktop()
 
     if (cmd_app_process_->isOpen()) {
 #if SYSAPI_UNIX
-        kill(cmd_app_process_->processId(), SIGTERM);
-        cmd_app_process_->waitForFinished(5000);
+        cmd_app_process_->terminate();
+        if (!cmd_app_process_->waitForFinished(2000)) {
+            kill(cmd_app_process_->processId(), SIGTERM);
+        }
+        if (!cmd_app_process_->waitForFinished(3000)) {
+            cmd_app_process_->kill();
+        }
+        cmd_app_process_->waitForFinished(2000);
 #endif
         cmd_app_process_->close();
     }
@@ -874,6 +966,14 @@ void MainWindow::stopDesktop()
 
 void MainWindow::cmd_app_finished(int exitCode, QProcess::ExitStatus)
 {
+    if (m_RestartPending) {
+        m_RestartPending = false;
+        set_connection_state(AppConnectionState::DISCONNECTED);
+        QTimer::singleShot(500, this, &MainWindow::start_cmd_app);
+        appendLogInfo(QString("process stopped, starting a fresh helper"));
+        return;
+    }
+
     if (exitCode == 0) {
         appendLogInfo(QString("process exited normally"));
     }

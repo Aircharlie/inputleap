@@ -428,6 +428,7 @@ private:
     BaseClientProxy* m_active;
     BaseClientProxy* m_keyboardTarget;
     bool m_keyboardFollowsMouse;
+    std::string m_pendingKeyboardTargetName;
     std::map<KeyButton, IKeyState::KeyInfo> m_pressedKeys;
 
     // the sequence number of enter messages

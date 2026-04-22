@@ -84,3 +84,8 @@ Validated locally on 2026-04-23:
 Avoid running multiple `input-leap` / `input-leaps` instances at the same time.
 During debugging, stale helper processes caused port `24800` conflicts and made
 hotkey behavior appear inconsistent.
+
+The GUI now includes a local macOS/Desktop mitigation for this: before the app
+starts its server helper, it checks whether port `24800` is still held by a
+same-bundle `input-leaps` process and terminates that stale helper before
+launching the new one.

@@ -65,6 +65,7 @@ Server::Server(
 	m_active(primaryClient),
 	m_keyboardTarget(primaryClient),
     m_keyboardFollowsMouse(true),
+	m_pendingKeyboardTargetName(),
 	m_seqNum(0),
 	m_xDelta(0),
 	m_yDelta(0),
@@ -301,6 +302,14 @@ Server::adoptClient(BaseClientProxy* client)
 		return;
 	}
 	LOG_NOTE("client \"%s\" has connected", getName(client).c_str());
+
+    if (!m_pendingKeyboardTargetName.empty() &&
+        m_pendingKeyboardTargetName == getName(client)) {
+        LOG_INFO("applying pending keyboard target \"%s\" after client activation",
+                 m_pendingKeyboardTargetName.c_str());
+        switchKeyboardScreen(client);
+        m_pendingKeyboardTargetName.clear();
+    }
 
 	// send configuration options to client
 	sendOptions(client);
@@ -1412,8 +1421,10 @@ void Server::handle_switch_keyboard_to_screen_event(const Event& event)
     auto index = m_clients.find(info.m_screen);
     if (index == m_clients.end()) {
         LOG_DEBUG1("screen \"%s\" not active", info.m_screen.c_str());
+        m_pendingKeyboardTargetName = info.m_screen;
     }
     else {
+        m_pendingKeyboardTargetName.clear();
         switchKeyboardScreen(index->second);
     }
 }
@@ -2293,6 +2304,10 @@ Server::forceLeaveClient(BaseClientProxy* client)
         m_pressedKeys.clear();
         m_keyboardFollowsMouse = true;
         updatePrimaryKeyboardSuppression();
+    }
+
+    if (m_pendingKeyboardTargetName == getName(client)) {
+        m_pendingKeyboardTargetName.clear();
     }
 
 	// tell primary client about the active sides
