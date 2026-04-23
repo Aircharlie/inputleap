@@ -44,6 +44,7 @@ public:
     bool fakeKeyRepeat(KeyID id, KeyModifierMask mask, std::int32_t count,
                        KeyButton button) override;
     bool fakeKeyUp(KeyButton button) override;
+    bool fakeKeyUp(KeyID id, KeyButton button) override;
     void fakeAllKeysUp() override;
     bool fakeCtrlAltDel() override;
     bool isKeyDown(KeyButton) const override;
@@ -69,6 +70,7 @@ public:
     void setKeyboardInputSuppressed(bool suppressed) override;
 
     bool fakeMediaKey(KeyID id) override;
+    KeyButton getButtonForKey(KeyID key) const override;
 
 protected:
     //! Update mouse buttons

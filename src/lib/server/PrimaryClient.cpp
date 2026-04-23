@@ -97,6 +97,11 @@ void PrimaryClient::pollPressedKeys(IKeyState::KeyButtonSet& pressedKeys) const
     m_screen->getPlatformScreen()->pollPressedKeys(pressedKeys);
 }
 
+KeyButton PrimaryClient::getButtonForKey(KeyID key) const
+{
+    return m_screen->getPlatformScreen()->getButtonForKey(key);
+}
+
 bool
 PrimaryClient::isLockedToScreen() const
 {

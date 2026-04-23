@@ -319,6 +319,13 @@ bool PlatformScreenLoggingWrapper::fakeKeyUp(KeyButton button)
     return result;
 }
 
+bool PlatformScreenLoggingWrapper::fakeKeyUp(KeyID id, KeyButton button)
+{
+    auto result = screen_->fakeKeyUp(id, button);
+    LOG_DEBUG1("PlatformScreen::fakeKeyUp() id=%d button=%d => %d", id, button, result);
+    return result;
+}
+
 void PlatformScreenLoggingWrapper::fakeAllKeysUp()
 {
     LOG_DEBUG1("PlatformScreen::fakeAllKeysUp()");
@@ -372,6 +379,13 @@ void PlatformScreenLoggingWrapper::pollPressedKeys(KeyButtonSet& pressed_keys) c
     screen_->pollPressedKeys(pressed_keys);
     LOG_DEBUG1("PlatformScreen::pollPressedKeys() => pressed_keys.size()=%zd",
          pressed_keys.size());
+}
+
+KeyButton PlatformScreenLoggingWrapper::getButtonForKey(KeyID key) const
+{
+    auto result = screen_->getButtonForKey(key);
+    LOG_DEBUG1("PlatformScreen::getButtonForKey() key=%d => %d", key, result);
+    return result;
 }
 
 void PlatformScreenLoggingWrapper::handle_system_event(const Event& event)

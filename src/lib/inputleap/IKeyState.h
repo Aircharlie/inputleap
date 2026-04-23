@@ -119,6 +119,7 @@ public:
     Synthesizes a key release event and updates the key state.
     */
     virtual bool fakeKeyUp(KeyButton button) = 0;
+    virtual bool fakeKeyUp(KeyID id, KeyButton button) = 0;
 
     //! Fake key releases for all fake pressed keys
     /*!
@@ -180,6 +181,9 @@ public:
     system to \p pressedKeys.
     */
     virtual void pollPressedKeys(KeyButtonSet& pressedKeys) const = 0;
+
+    //! Map a logical key id to the current platform button
+    virtual KeyButton getButtonForKey(KeyID key) const = 0;
 
     //@}
 };

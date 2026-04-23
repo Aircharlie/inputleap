@@ -528,6 +528,7 @@ void Server::switchKeyboardScreen(BaseClientProxy* dst)
     releaseKeyboardTargetKeys(oldTarget);
     m_keyboardTarget = dst;
     m_pressedKeys.clear();
+    releaseKeyboardTargetModifiers(m_keyboardTarget);
     updatePrimaryKeyboardSuppression();
 
     LOG_INFO("switch keyboard from \"%s\" to \"%s\"",
@@ -545,6 +546,7 @@ void Server::followMouseForKeyboard()
     releaseKeyboardTargetKeys(oldTarget);
     m_keyboardTarget = m_active;
     m_pressedKeys.clear();
+    releaseKeyboardTargetModifiers(m_keyboardTarget);
     updatePrimaryKeyboardSuppression();
 
     LOG_INFO("keyboard now follows mouse on \"%s\"", getName(m_active).c_str());
@@ -562,6 +564,28 @@ void Server::releaseKeyboardTargetKeys(BaseClientProxy* target)
     for (const auto& [button, keyInfo] : m_pressedKeys) {
         if (pressedButtons.count(button) != 0) {
             target->keyUp(keyInfo.m_key, keyInfo.m_mask, keyInfo.m_button);
+        }
+    }
+}
+
+void Server::releaseKeyboardTargetModifiers(BaseClientProxy* target)
+{
+    if (target == nullptr) {
+        return;
+    }
+
+    static constexpr KeyID kModifierKeys[] = {
+        kKeyShift_L,   kKeyShift_R,
+        kKeyControl_L, kKeyControl_R,
+        kKeyAlt_L,     kKeyAlt_R,
+        kKeyMeta_L,    kKeyMeta_R,
+        kKeySuper_L,   kKeySuper_R,
+    };
+
+    for (KeyID key : kModifierKeys) {
+        const KeyButton button = m_primaryClient->getButtonForKey(key);
+        if (button != 0) {
+            target->keyUp(key, 0, button);
         }
     }
 }

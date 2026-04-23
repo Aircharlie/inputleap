@@ -87,6 +87,7 @@ public:
     bool fakeKeyRepeat(KeyID id, KeyModifierMask mask, std::int32_t count,
                        KeyButton button) override;
     bool fakeKeyUp(KeyButton button) override;
+    bool fakeKeyUp(KeyID id, KeyButton button) override;
     void fakeAllKeysUp() override;
     bool fakeCtrlAltDel() override;
     bool fakeMediaKey(KeyID id) override;
@@ -96,6 +97,7 @@ public:
     KeyModifierMask pollActiveModifiers() const override;
     std::int32_t pollActiveGroup() const override;
     void pollPressedKeys(KeyButtonSet& pressed_keys) const override;
+    KeyButton getButtonForKey(KeyID key) const override;
 
     void handle_system_event(const Event& event) override;
 

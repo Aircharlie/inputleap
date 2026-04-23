@@ -200,9 +200,11 @@ void Screen::keyRepeat(KeyID id, KeyModifierMask mask, std::int32_t count, KeyBu
 }
 
 void
-Screen::keyUp(KeyID, KeyModifierMask, KeyButton button)
+Screen::keyUp(KeyID id, KeyModifierMask, KeyButton button)
 {
-    m_screen->fakeKeyUp(button);
+    if (!m_screen->fakeKeyUp(button) && id != kKeyNone) {
+        m_screen->fakeKeyUp(id, button);
+    }
 }
 
 void

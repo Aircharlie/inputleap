@@ -668,7 +668,7 @@ KeyState::fakeKeyUp(KeyButton serverID)
     // note keys down
     --m_keys[localID];
     --m_syntheticKeys[localID];
-    m_serverKeys[serverID] = 0;
+    m_serverKeys[serverID & kButtonMask] = 0;
 
     // check if this is a modifier
     auto i = m_activeModifiers.begin();
@@ -693,6 +693,69 @@ KeyState::fakeKeyUp(KeyButton serverID)
     }
 
     // generate key events
+    fakeKeys(keys, 1);
+    return true;
+}
+
+bool
+KeyState::fakeKeyUp(KeyID id, KeyButton serverID)
+{
+    if (fakeKeyUp(serverID)) {
+        return true;
+    }
+
+    std::int32_t group = pollActiveGroup();
+    const inputleap::KeyMap::KeyItemList* items =
+        m_keyMap.findCompatibleKey(id, group, 0, 0);
+    if (items == nullptr) {
+        for (std::int32_t g = 0, n = m_keyMap.getNumGroups(); g < n; ++g) {
+            if (g == group) {
+                continue;
+            }
+            items = m_keyMap.findCompatibleKey(id, g, 0, 0);
+            if (items != nullptr) {
+                break;
+            }
+        }
+    }
+    if (items == nullptr || items->empty()) {
+        return false;
+    }
+
+    const inputleap::KeyMap::KeyItem& keyItem = items->back();
+    KeyButton localID = static_cast<KeyButton>(keyItem.m_button & kButtonMask);
+    if (localID == 0) {
+        return false;
+    }
+
+    Keystrokes keys;
+    keys.push_back(Keystroke(localID, false, false, keyItem.m_client));
+
+    if (m_keys[localID] > 0) {
+        --m_keys[localID];
+    }
+    if (m_syntheticKeys[localID] > 0) {
+        --m_syntheticKeys[localID];
+    }
+    m_serverKeys[serverID & kButtonMask] = 0;
+
+    auto i = m_activeModifiers.begin();
+    while (i != m_activeModifiers.end()) {
+        if (i->second.m_button == localID && !i->second.m_lock) {
+            KeyModifierMask mask = i->first;
+            auto tmp = i;
+            ++i;
+            m_activeModifiers.erase(tmp);
+            if (m_activeModifiers.count(mask) == 0) {
+                m_mask &= ~mask;
+                LOG_DEBUG1("new state %04x", m_mask);
+            }
+        }
+        else {
+            ++i;
+        }
+    }
+
     fakeKeys(keys, 1);
     return true;
 }
@@ -726,6 +789,28 @@ bool
 KeyState::isKeyDown(KeyButton button) const
 {
     return (m_keys[button & kButtonMask] > 0);
+}
+
+KeyButton
+KeyState::getButtonForKey(KeyID key) const
+{
+    std::int32_t group = pollActiveGroup();
+    KeyButton button = getButton(key, group);
+    if (button != 0) {
+        return button;
+    }
+
+    for (std::int32_t g = 0, n = m_keyMap.getNumGroups(); g < n; ++g) {
+        if (g == group) {
+            continue;
+        }
+        button = getButton(key, g);
+        if (button != 0) {
+            return button;
+        }
+    }
+
+    return 0;
 }
 
 KeyModifierMask

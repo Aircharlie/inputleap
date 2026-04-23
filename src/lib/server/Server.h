@@ -233,6 +233,9 @@ private:
     // flush pressed keys from current keyboard target before retargeting
     void releaseKeyboardTargetKeys(BaseClientProxy* target);
 
+    // clear stale modifier state on a keyboard target after retargeting
+    void releaseKeyboardTargetModifiers(BaseClientProxy* target);
+
     // update whether the primary screen should swallow local keyboard input
     void updatePrimaryKeyboardSuppression();
 

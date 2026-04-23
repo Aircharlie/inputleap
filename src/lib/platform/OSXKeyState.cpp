@@ -158,9 +158,15 @@ OSXKeyState::init()
     // build virtual key map
     for (size_t i = 0; i < sizeof(s_controlKeys) / sizeof(s_controlKeys[0]);
         ++i) {
-
-        m_virtualKeyMap[s_controlKeys[i].m_virtualKey] =
-            s_controlKeys[i].m_keyID;
+        // Keep the first mapping for a virtual key. Command keys are listed
+        // twice in s_controlKeys (Super first, Meta second), and blindly
+        // overwriting here makes macOS Command surface as Meta_R/Meta_L while
+        // the modifier flags still report Super. That mismatch can leave
+        // Windows-side Win state inconsistent.
+        if (m_virtualKeyMap.count(s_controlKeys[i].m_virtualKey) == 0) {
+            m_virtualKeyMap[s_controlKeys[i].m_virtualKey] =
+                s_controlKeys[i].m_keyID;
+        }
     }
 }
 

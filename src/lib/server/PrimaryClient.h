@@ -113,6 +113,9 @@ public:
     //! Get currently pressed physical keys from the OS
     void pollPressedKeys(IKeyState::KeyButtonSet& pressedKeys) const;
 
+    //! Map a logical key id to the current primary-screen button
+    KeyButton getButtonForKey(KeyID key) const;
+
     //! Get screen lock state
     /*!
     Returns true if the user is locked to the screen.

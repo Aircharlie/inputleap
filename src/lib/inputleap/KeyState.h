@@ -70,11 +70,13 @@ public:
     bool fakeKeyRepeat(KeyID id, KeyModifierMask mask, std::int32_t count,
                        KeyButton button) override;
     bool fakeKeyUp(KeyButton button) override;
+    bool fakeKeyUp(KeyID id, KeyButton button) override;
     void fakeAllKeysUp() override;
     bool fakeMediaKey(KeyID id) override;
 
     bool isKeyDown(KeyButton) const override;
     KeyModifierMask getActiveModifiers() const override;
+    KeyButton getButtonForKey(KeyID key) const override;
 
     std::int32_t getKeyState(KeyButton keyButton) { return m_keys[keyButton]; }
 

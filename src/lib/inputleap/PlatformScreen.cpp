@@ -71,6 +71,12 @@ PlatformScreen::fakeKeyUp(KeyButton button)
     return getKeyState()->fakeKeyUp(button);
 }
 
+bool
+PlatformScreen::fakeKeyUp(KeyID id, KeyButton button)
+{
+    return getKeyState()->fakeKeyUp(id, button);
+}
+
 void
 PlatformScreen::fakeAllKeysUp()
 {
@@ -110,6 +116,12 @@ void
 PlatformScreen::pollPressedKeys(KeyButtonSet& pressedKeys) const
 {
     getKeyState()->pollPressedKeys(pressedKeys);
+}
+
+KeyButton
+PlatformScreen::getButtonForKey(KeyID key) const
+{
+    return getKeyState()->getButtonForKey(key);
 }
 
 bool
