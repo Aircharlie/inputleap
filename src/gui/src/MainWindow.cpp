@@ -1291,6 +1291,11 @@ void MainWindow::on_m_pActionSettings_triggered()
 
 void MainWindow::autoAddScreen(const QString name)
 {
+    if (ui_->m_pRadioExternalConfig->isChecked()) {
+        appendLogInfo(tr("ignoring zeroconf client detected while using external config: %1").arg(name));
+        return;
+    }
+
     if (!m_ServerConfig.ignoreAutoConfigClient()) {
         int r = m_ServerConfig.autoAddScreen(name);
         if (r != kAutoAddScreenOk) {

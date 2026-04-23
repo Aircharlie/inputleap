@@ -49,6 +49,25 @@ The installed macOS app was configured with:
 - `useExternalConfig = 1`
 - `configFile = /Users/charleschen/Code/InputLeap/input-leap.conf`
 
+## Local Code Signing
+
+To reduce macOS TCC permission churn after rebuilding the app, this repo now
+ships a local codesigning helper:
+
+```bash
+/Users/charleschen/Code/InputLeap/scripts/macos/setup_local_codesign.sh
+```
+
+It creates a reusable local signing certificate named
+`InputLeap Local Codesign` in the login keychain. The macOS bundle build then
+automatically re-signs `InputLeap.app` with that identity if present.
+
+This does not bypass macOS privacy rules. You may still need to grant
+Accessibility and Input Monitoring one more time after switching from ad-hoc
+signing to the stable local identity, but future rebuilds should be much less
+likely to invalidate those permissions as long as the bundle identifier and
+signing identity stay the same.
+
 ## Stable Server Launch Command
 
 For debugging and deterministic verification, this foreground launch path was

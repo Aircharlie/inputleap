@@ -12,12 +12,24 @@ B_BINDIR="@CMAKE_RUNTIME_OUTPUT_DIRECTORY@"
 B_BUILDTYPE="@CMAKE_BUILD_TYPE@"
 B_INPUTLEAPC="InputLeap.app/Contents/MacOS/input-leapc"
 B_INPUTLEAPS="InputLeap.app/Contents/MacOS/input-leaps"
+B_CODESIGN_IDENTITY="${INPUTLEAP_CODESIGN_IDENTITY:-InputLeap Local Codesign}"
 
 # Colorized output
 info() { tput bold >/dev/null 2>&1 || true; echo "$@"; tput sgr0 >/dev/null 2>&1 || true; }
 error() { tput bold >/dev/null 2>&1 || true; tput setaf 1 >/dev/null 2>&1 || true; echo "$@"; tput sgr0 >/dev/null 2>&1 || true; }
 success() { tput bold >/dev/null 2>&1 || true; tput setaf 2 >/dev/null 2>&1 || true; echo "$@"; tput sgr0 >/dev/null 2>&1 || true; }
 warn() { tput bold >/dev/null 2>&1 || true; tput setaf 3 >/dev/null 2>&1 || true; echo "$@"; tput sgr0 >/dev/null 2>&1 || true; }
+
+sign_bundle() {
+    if ! security find-certificate -a -c "$B_CODESIGN_IDENTITY" "$HOME/Library/Keychains/login.keychain-db" >/dev/null 2>&1; then
+        warn "Skipping bundle signing; certificate not found: $B_CODESIGN_IDENTITY"
+        return 0
+    fi
+
+    info "Signing bundle with identity: $B_CODESIGN_IDENTITY"
+    /usr/bin/codesign --force --deep --sign "$B_CODESIGN_IDENTITY" InputLeap.app || exit 1
+    /usr/bin/codesign --verify --deep --strict InputLeap.app || exit 1
+}
 
 info "Checking for bundle contents"
 if [ ! -d "InputLeap.app/Contents" ]; then
@@ -45,6 +57,7 @@ if [ "$B_BUILDTYPE" = "Release" ]; then
     $DEPLOYQT_LIBPATHS \
     -executable="$B_INPUTLEAPC" \
     -executable="$B_INPUTLEAPS" || exit 1
+    sign_bundle
     mv "InputLeap.dmg" "InputLeap-$B_VERSION.dmg" || exit 1
     success "Created InputLeap-$B_VERSION.dmg"
 else
@@ -54,5 +67,6 @@ else
     $DEPLOYQT_LIBPATHS \
     -executable="$B_INPUTLEAPC" \
     -executable="$B_INPUTLEAPS" || exit 1
+    sign_bundle
     success "Bundle created successfully"
 fi
