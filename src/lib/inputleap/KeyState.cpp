@@ -655,9 +655,14 @@ bool KeyState::fakeKeyRepeat(KeyID id, KeyModifierMask mask, std::int32_t count,
 bool
 KeyState::fakeKeyUp(KeyButton serverID)
 {
+    const KeyButton maskedServerID = serverID & kButtonMask;
+
     // if we haven't seen this button go down then ignore it
-    KeyButton localID = m_serverKeys[serverID & kButtonMask];
+    KeyButton localID = m_serverKeys[maskedServerID];
+    LOG_DEBUG1("fakeKeyUp(button): serverID=%04x masked=%04x localID=%04x maskBefore=%04x",
+               serverID, maskedServerID, localID, m_mask);
     if (localID == 0) {
+        LOG_DEBUG1("fakeKeyUp(button): no local mapping for serverID=%04x", maskedServerID);
         return false;
     }
 
@@ -668,7 +673,9 @@ KeyState::fakeKeyUp(KeyButton serverID)
     // note keys down
     --m_keys[localID];
     --m_syntheticKeys[localID];
-    m_serverKeys[serverID & kButtonMask] = 0;
+    m_serverKeys[maskedServerID] = 0;
+    LOG_DEBUG1("fakeKeyUp(button): localID=%04x counts after decrement keys=%d synthetic=%d",
+               localID, m_keys[localID], m_syntheticKeys[localID]);
 
     // check if this is a modifier
     auto i = m_activeModifiers.begin();
@@ -692,6 +699,10 @@ KeyState::fakeKeyUp(KeyButton serverID)
         }
     }
 
+    LOG_DEBUG1("fakeKeyUp(button): final localID=%04x mask=%04x ctrl=%d super=%d",
+               localID, m_mask, ((m_mask & KeyModifierControl) != 0),
+               ((m_mask & KeyModifierSuper) != 0));
+
     // generate key events
     fakeKeys(keys, 1);
     return true;
@@ -700,7 +711,10 @@ KeyState::fakeKeyUp(KeyButton serverID)
 bool
 KeyState::fakeKeyUp(KeyID id, KeyButton serverID)
 {
+    LOG_DEBUG1("fakeKeyUp(id): id=%04x serverID=%04x maskBefore=%04x",
+               id, serverID & kButtonMask, m_mask);
     if (fakeKeyUp(serverID)) {
+        LOG_DEBUG1("fakeKeyUp(id): direct server mapping release succeeded for id=%04x", id);
         return true;
     }
 
@@ -719,11 +733,14 @@ KeyState::fakeKeyUp(KeyID id, KeyButton serverID)
         }
     }
     if (items == nullptr || items->empty()) {
+        LOG_DEBUG1("fakeKeyUp(id): no compatible key found for id=%04x", id);
         return false;
     }
 
     const inputleap::KeyMap::KeyItem& keyItem = items->back();
     KeyButton localID = static_cast<KeyButton>(keyItem.m_button & kButtonMask);
+    LOG_DEBUG1("fakeKeyUp(id): fallback localID=%04x group=%d client=%08x",
+               localID, group, keyItem.m_client);
     if (localID == 0) {
         return false;
     }
@@ -738,6 +755,8 @@ KeyState::fakeKeyUp(KeyID id, KeyButton serverID)
         --m_syntheticKeys[localID];
     }
     m_serverKeys[serverID & kButtonMask] = 0;
+    LOG_DEBUG1("fakeKeyUp(id): localID=%04x counts after decrement keys=%d synthetic=%d",
+               localID, m_keys[localID], m_syntheticKeys[localID]);
 
     auto i = m_activeModifiers.begin();
     while (i != m_activeModifiers.end()) {
@@ -755,6 +774,10 @@ KeyState::fakeKeyUp(KeyID id, KeyButton serverID)
             ++i;
         }
     }
+
+    LOG_DEBUG1("fakeKeyUp(id): final localID=%04x mask=%04x ctrl=%d super=%d",
+               localID, m_mask, ((m_mask & KeyModifierControl) != 0),
+               ((m_mask & KeyModifierSuper) != 0));
 
     fakeKeys(keys, 1);
     return true;
