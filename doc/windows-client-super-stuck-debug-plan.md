@@ -3,6 +3,21 @@
 This document is the handoff plan for debugging the Windows client side of the
 custom keyboard-only switching patch.
 
+## Latest Status
+
+As of 2026-04-24 on the Windows machine:
+
+- a fresh Windows-only debug client was built from this fork
+- the rebuilt client was run from an isolated Windows build directory
+- the client successfully connected to the macOS server
+- keyboard input worked normally
+- `Right Win` was no longer sticky
+- `Control` was also no longer observed to stick during the validation run
+
+This means the current Windows debug build is now a good baseline for any
+follow-up investigation. Keep the temporary logging in place unless it becomes
+too noisy.
+
 ## Symptom
 
 In the custom `keyboard-only` mode:
@@ -118,12 +133,45 @@ Do not validate using the stock installed binary in
 `C:\Program Files\InputLeap\input-leapc.exe` unless it has been replaced by the
 freshly built client from this fork.
 
+Use the isolated Windows build output instead:
+
+- build dir: `C:\Users\imocc\Code\InputLeap\InputLeap\build-win-debug`
+- client exe:
+  `C:\Users\imocc\Code\InputLeap\InputLeap\build-win-debug\bin\input-leapc.exe`
+
+Windows-only dependency/tooling used for this build:
+
+- isolated vcpkg dir: `C:\Users\imocc\Code\InputLeap\vcpkg-win`
+- OpenSSL triplet: `x64-windows-static`
+
+Do not reuse the repository's generic `build/` directory for Windows debug
+validation. Keep Windows artifacts in `build-win-debug` so they stay isolated
+from any macOS-oriented outputs or prior mixed builds.
+
+## Current Instrumentation
+
+Temporary debug logging has already been added to:
+
+- `src/lib/inputleap/KeyState.cpp`
+- `src/lib/platform/MSWindowsKeyState.cpp`
+
+The added logs print:
+
+- `serverID -> localID` resolution in `fakeKeyUp(...)`
+- whether the direct or fallback release path was used
+- `m_keys[localID]` and `m_syntheticKeys[localID]` after decrement
+- `m_mask` before and after release handling
+- whether `Control` / `Super` remain active
+- which Win32 modifier buttons contribute to `pollActiveModifiers()`
+
+Keep these logs for later agents unless there is a clear reason to trim them.
+
 ## Reproduction Command
 
 Run the rebuilt client in foreground with debug logging:
 
 ```powershell
-& "<path-to-built-client>\\input-leapc.exe" `
+& "C:\\Users\\imocc\\Code\\InputLeap\\InputLeap\\build-win-debug\\bin\\input-leapc.exe" `
   --no-daemon `
   --no-restart `
   --disable-crypto `
@@ -227,6 +275,23 @@ Most likely fix order:
    accepting keyboard-only input without a full screen enter/leave.
 3. Only if the above fails, look for a narrower Windows-specific distinction
    between physical local Win-key state and remote synthetic Win-key state.
+
+## Most Recent Validation Result
+
+The isolated rebuilt Windows client was launched successfully on
+2026-04-24, initially hit a temporary `Connection was refused` error while the
+macOS server was unavailable, then connected successfully once the server was
+reachable.
+
+After connection:
+
+- no sticky `Right Win` was observed
+- no sticky `Control` was observed
+- the rebuilt client became the preferred baseline for future debugging
+
+If the bug reappears later, re-run using the same rebuilt binary and inspect the
+temporary `fakeKeyUp(...)` and `pollActiveModifiers()` logs before making any
+new code changes.
 
 ## Acceptance Criteria
 

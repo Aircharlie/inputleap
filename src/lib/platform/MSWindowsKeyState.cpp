@@ -833,6 +833,8 @@ MSWindowsKeyState::pollActiveModifiers() const
 		KeyButton button = virtualKeyToButton(s_modifiers[i].m_vk);
 		if (button != 0 && isKeyDown(button)) {
 			state |= s_modifiers[i].m_mask;
+			LOG_DEBUG1("pollActiveModifiers: vk=%03x button=%03x contributes mask=%04x state=%04x",
+			           s_modifiers[i].m_vk, button, s_modifiers[i].m_mask, state);
 		}
 	}
 
@@ -846,6 +848,12 @@ MSWindowsKeyState::pollActiveModifiers() const
 	if ((GetKeyState(VK_SCROLL) & 0x01) != 0) {
 		state |= KeyModifierScrollLock;
 	}
+
+	LOG_DEBUG1("pollActiveModifiers: final state=%04x ctrl=%d super=%d shift=%d alt=%d",
+	           state, ((state & KeyModifierControl) != 0),
+	           ((state & KeyModifierSuper) != 0),
+	           ((state & KeyModifierShift) != 0),
+	           ((state & KeyModifierAlt) != 0));
 
 	return state;
 }
