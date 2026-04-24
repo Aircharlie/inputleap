@@ -1,5 +1,8 @@
 # Input Leap
 
+I separated mouse and keyboard behaviors of input leap.
+
+
 <!-- add badges: flatpak, snap, GitHub Actions -->
 
 ### Contact info:
