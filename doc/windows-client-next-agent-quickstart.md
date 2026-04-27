@@ -11,11 +11,11 @@ keyboard-only switching investigation.
 - Keep the temporary debug logging in place unless there is a strong reason to
   remove it
 - Date launcher/Bonjour state last validated: 2026-04-27
-- Result: Windows launcher now tries Bonjour discovery first, then falls back
-  to manual host/IP input in the CLI
+- Result: Windows launcher now prefers a custom UDP discovery path, then falls
+  back to manual host/IP input in the CLI
 - Caveat: on this machine, Apple's `Bonjour Service` (`mDNSResponder.exe`
-  3.1.0.1) still crashes immediately on startup, so auto-discovery is expected
-  to fail until that Windows-side crash is fixed
+  3.1.0.1) still crashes immediately on startup, so Bonjour is not considered a
+  dependable discovery option
 
 ## Use These Paths
 
@@ -74,16 +74,23 @@ evidence that the rebuilt Windows client is broken.
 
 Current launcher behavior:
 
-1. try to discover `_inputLeapServerZeroconf._tcp.local.` via `dns-sd.exe`
-2. if discovery succeeds, launch the rebuilt client against the discovered host
+1. send a UDP broadcast discovery probe to port `24801`
+2. if discovery succeeds, launch the rebuilt client against the replying host
 3. if discovery fails, prompt for manual host/IP input in the CLI
 
-Expected current failure mode on this machine:
+The matching server-side responder now lives in:
 
-- `Bonjour browse failed: ... DNSService call failed -65563`
+- `src/lib/inputleap/ServerDiscoveryResponder.h`
+- `src/lib/inputleap/ServerDiscoveryResponder.cpp`
 
-That message is currently a local Windows Bonjour problem, not proof that the
-macOS InputLeap server is missing.
+Protocol shape:
+
+- request payload: `INPUTLEAP_DISCOVER_V1`
+- reply payload: `INPUTLEAP_SERVER_V1<TAB><screen-name><TAB><tcp-port>`
+
+If UDP discovery does not find anything, check whether the server build being
+run actually includes the new responder path before spending more time on local
+Windows networking.
 
 ## Relevant Instrumentation
 

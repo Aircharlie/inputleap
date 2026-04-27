@@ -24,6 +24,7 @@
 #include "server/PrimaryClient.h"
 #include "inputleap/ArgParser.h"
 #include "PlatformScreenLoggingWrapper.h"
+#include "inputleap/ServerDiscoveryResponder.h"
 #include "inputleap/Screen.h"
 #include "inputleap/XScreen.h"
 #include "inputleap/ServerTaskBarReceiver.h"
@@ -364,6 +365,7 @@ void
 ServerApp::stopServer()
 {
     if (m_serverState == kStarted) {
+        stopDiscoveryResponder();
         closeServer(server_.get());
         closeClientListener(m_listener);
         server_.reset();
@@ -561,6 +563,7 @@ ServerApp::startServer()
         listener->setServer(server_.get());
         server_->setListener(listener);
         m_listener = listener;
+        startDiscoveryResponder();
         updateStatus();
 
         // using CLOG_PRINT here allows the GUI to see that the server is started
@@ -675,6 +678,27 @@ std::unique_ptr<Server> ServerApp::open_server(Config& config, PrimaryClient* pr
 void ServerApp::handle_no_clients()
 {
     updateStatus();
+}
+
+void ServerApp::startDiscoveryResponder()
+{
+    auto listenAddress = args().m_config->get_listen_address();
+    const auto serverPort = static_cast<std::uint16_t>(listenAddress.getPort());
+    const auto serverName = args().m_config->getCanonicalName(args().m_name);
+
+    discovery_responder_ = std::make_unique<ServerDiscoveryResponder>(serverName, serverPort);
+    if (!discovery_responder_->start()) {
+        LOG_WARN("UDP discovery responder is unavailable; automatic client discovery will be disabled");
+        discovery_responder_.reset();
+    }
+}
+
+void ServerApp::stopDiscoveryResponder()
+{
+    if (discovery_responder_) {
+        discovery_responder_->stop();
+        discovery_responder_.reset();
+    }
 }
 
 void ServerApp::handle_screen_switched(const Event& e)

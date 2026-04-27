@@ -18,6 +18,26 @@ This means the current Windows debug build is now a good baseline for any
 follow-up investigation. Keep the temporary logging in place unless it becomes
 too noisy.
 
+As of 2026-04-27, Bonjour is no longer the preferred auto-discovery direction
+for this Windows machine. The next path is a lightweight UDP discovery
+responder built into `input-leaps`.
+
+## Post-Bonjour Discovery Direction
+
+Server-side discovery now lives in:
+
+- `src/lib/inputleap/ServerDiscoveryResponder.h`
+- `src/lib/inputleap/ServerDiscoveryResponder.cpp`
+
+Current protocol:
+
+- server listens on UDP `24801`
+- client/launcher sends `INPUTLEAP_DISCOVER_V1`
+- server replies `INPUTLEAP_SERVER_V1<TAB><screen-name><TAB><tcp-port>`
+
+The goal is to let Windows discover the macOS InputLeap server without relying
+on Apple's broken Windows Bonjour stack.
+
 ## Symptom
 
 In the custom `keyboard-only` mode:
