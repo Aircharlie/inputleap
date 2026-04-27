@@ -10,6 +10,12 @@ keyboard-only switching investigation.
   `Right Win` or sticky `Control` was observed
 - Keep the temporary debug logging in place unless there is a strong reason to
   remove it
+- Date launcher/Bonjour state last validated: 2026-04-27
+- Result: Windows launcher now tries Bonjour discovery first, then falls back
+  to manual host/IP input in the CLI
+- Caveat: on this machine, Apple's `Bonjour Service` (`mDNSResponder.exe`
+  3.1.0.1) still crashes immediately on startup, so auto-discovery is expected
+  to fail until that Windows-side crash is fixed
 
 ## Use These Paths
 
@@ -58,6 +64,26 @@ cmd /c 'call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\
 
 If you get `Connection was refused`, that is a server reachability problem, not
 evidence that the rebuilt Windows client is broken.
+
+## Daily Launcher
+
+- desktop shortcut:
+  `C:\Users\imocc\Desktop\InputLeap Windows Client.lnk`
+- launcher script:
+  `C:\Users\imocc\Desktop\InputLeap Windows Client Launcher.ps1`
+
+Current launcher behavior:
+
+1. try to discover `_inputLeapServerZeroconf._tcp.local.` via `dns-sd.exe`
+2. if discovery succeeds, launch the rebuilt client against the discovered host
+3. if discovery fails, prompt for manual host/IP input in the CLI
+
+Expected current failure mode on this machine:
+
+- `Bonjour browse failed: ... DNSService call failed -65563`
+
+That message is currently a local Windows Bonjour problem, not proof that the
+macOS InputLeap server is missing.
 
 ## Relevant Instrumentation
 
