@@ -30,6 +30,7 @@
 #include "ServerArgs.h"
 
 #include <map>
+#include <memory>
 
 namespace inputleap {
 
@@ -44,6 +45,7 @@ enum EServerState {
 
 class Server;
 class ClientListener;
+class ServerDiscoveryResponder;
 
 class ServerApp : public App {
 public:
@@ -114,6 +116,11 @@ public:
 private:
     std::unique_ptr<IPlatformScreen> create_platform_screen();
     void handle_screen_switched(const Event& event);
+    void startDiscoveryResponder();
+    void stopDiscoveryResponder();
+
+private:
+    std::unique_ptr<ServerDiscoveryResponder> discovery_responder_;
 };
 
 // configuration file name
