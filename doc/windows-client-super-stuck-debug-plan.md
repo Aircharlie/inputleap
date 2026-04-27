@@ -293,6 +293,32 @@ If the bug reappears later, re-run using the same rebuilt binary and inspect the
 temporary `fakeKeyUp(...)` and `pollActiveModifiers()` logs before making any
 new code changes.
 
+## Bonjour / Launcher Follow-Up
+
+As of 2026-04-27, the Windows daily launcher was updated outside the repo to
+use this order:
+
+1. try Bonjour discovery first
+2. if that fails, prompt for manual host/IP input in the CLI
+
+That launcher currently cannot rely on Bonjour on this machine because the
+Windows `Bonjour Service` process (`C:\Program Files\Bonjour\mDNSResponder.exe`,
+version `3.1.0.1`) crashes immediately on startup.
+
+Observed local failure signature:
+
+- `dns-sd -V` -> `DNSServiceGetProperty failed -65563`
+- Windows Event Log:
+  - faulting app: `mDNSResponder.exe`
+  - exception code: `0xc0000409`
+  - fault offset: `0x00000000000437c3`
+
+Important scope note:
+
+- this is separate from the InputLeap sticky-modifier bug
+- it breaks Windows-side Bonjour auto-discovery, but does not prevent manual
+  InputLeap client startup when a host/IP is provided
+
 ## Acceptance Criteria
 
 The fix is correct when all of the following are true:
