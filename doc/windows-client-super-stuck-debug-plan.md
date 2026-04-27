@@ -35,6 +35,15 @@ Current protocol:
 - client/launcher sends `INPUTLEAP_DISCOVER_V1`
 - server replies `INPUTLEAP_SERVER_V1<TAB><screen-name><TAB><tcp-port>`
 
+Latest launcher-side finding:
+
+- sending only to `255.255.255.255` was not sufficient on this network
+- directed broadcast probing worked when targeting interface-specific addresses
+  such as `192.168.71.255`
+- the Windows launcher should therefore enumerate active IPv4 interfaces and
+  probe each computed directed broadcast address first, with
+  `255.255.255.255` only as a fallback
+
 The goal is to let Windows discover the macOS InputLeap server without relying
 on Apple's broken Windows Bonjour stack.
 
