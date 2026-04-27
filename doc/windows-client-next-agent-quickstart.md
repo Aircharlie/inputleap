@@ -13,6 +13,10 @@ keyboard-only switching investigation.
 - Date launcher/Bonjour state last validated: 2026-04-27
 - Result: Windows launcher now prefers a custom UDP discovery path, then falls
   back to manual host/IP input in the CLI
+- Date directed-broadcast discovery last validated: 2026-04-27
+- Result: discovery succeeded after updating the Windows launcher to enumerate
+  active IPv4 interfaces, compute each interface's directed broadcast address,
+  and probe those addresses before falling back to `255.255.255.255`
 - Caveat: on this machine, Apple's `Bonjour Service` (`mDNSResponder.exe`
   3.1.0.1) still crashes immediately on startup, so Bonjour is not considered a
   dependable discovery option
@@ -74,9 +78,12 @@ evidence that the rebuilt Windows client is broken.
 
 Current launcher behavior:
 
-1. send a UDP broadcast discovery probe to port `24801`
-2. if discovery succeeds, launch the rebuilt client against the replying host
-3. if discovery fails, prompt for manual host/IP input in the CLI
+1. enumerate active IPv4 interfaces on Windows
+2. compute each directed broadcast address from `ip + subnet mask`
+3. send `INPUTLEAP_DISCOVER_V1` to each directed broadcast on UDP `24801`
+4. send the same probe to `255.255.255.255` as a fallback
+5. if discovery succeeds, launch the rebuilt client against the replying host
+6. if discovery fails, prompt for manual host/IP input in the CLI
 
 The matching server-side responder now lives in:
 
@@ -87,6 +94,11 @@ Protocol shape:
 
 - request payload: `INPUTLEAP_DISCOVER_V1`
 - reply payload: `INPUTLEAP_SERVER_V1<TAB><screen-name><TAB><tcp-port>`
+
+Known practical finding:
+
+- in this network, discovery worked against the directed broadcast targets
+  such as `192.168.71.255`, but not when relying on `255.255.255.255` alone
 
 If UDP discovery does not find anything, check whether the server build being
 run actually includes the new responder path before spending more time on local
