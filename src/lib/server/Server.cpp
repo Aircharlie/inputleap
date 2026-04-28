@@ -521,6 +521,12 @@ void Server::switchKeyboardScreen(BaseClientProxy* dst)
 
     m_keyboardFollowsMouse = false;
     if (m_keyboardTarget == dst) {
+        releaseKeyboardTargetKeys(m_keyboardTarget);
+        m_pressedKeys.clear();
+        releaseKeyboardTargetModifiers(m_keyboardTarget);
+        updatePrimaryKeyboardSuppression();
+        LOG_DEBUG1("keyboard already targeted \"%s\"; released forwarded hotkey state",
+                   getName(dst).c_str());
         return;
     }
 
@@ -539,6 +545,12 @@ void Server::followMouseForKeyboard()
 {
     m_keyboardFollowsMouse = true;
     if (m_keyboardTarget == m_active) {
+        releaseKeyboardTargetKeys(m_keyboardTarget);
+        m_pressedKeys.clear();
+        releaseKeyboardTargetModifiers(m_keyboardTarget);
+        updatePrimaryKeyboardSuppression();
+        LOG_DEBUG1("keyboard already follows mouse on \"%s\"; released forwarded hotkey state",
+                   getName(m_active).c_str());
         return;
     }
 
@@ -558,13 +570,8 @@ void Server::releaseKeyboardTargetKeys(BaseClientProxy* target)
         return;
     }
 
-    IKeyState::KeyButtonSet pressedButtons;
-    m_primaryClient->pollPressedKeys(pressedButtons);
-
     for (const auto& [button, keyInfo] : m_pressedKeys) {
-        if (pressedButtons.count(button) != 0) {
-            target->keyUp(keyInfo.m_key, keyInfo.m_mask, keyInfo.m_button);
-        }
+        target->keyUp(keyInfo.m_key, keyInfo.m_mask, keyInfo.m_button);
     }
 }
 
