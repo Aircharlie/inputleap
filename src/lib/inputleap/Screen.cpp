@@ -83,6 +83,9 @@ Screen::disable()
     if (!m_isPrimary && m_entered) {
         leave();
     }
+    else if (!m_isPrimary) {
+        m_screen->fakeAllKeysUp();
+    }
     else if (m_isPrimary && !m_entered) {
         enter(0);
     }

@@ -322,6 +322,71 @@ If the bug reappears later, re-run using the same rebuilt binary and inspect the
 temporary `fakeKeyUp(...)` and `pollActiveModifiers()` logs before making any
 new code changes.
 
+## 2026-04-28 Mouse-Click Symptom Follow-Up
+
+Windows keyboard input appeared normal again, but mouse clicks still behaved
+incorrectly while InputLeap was running.
+
+The Windows client log showed the likely cause was still modifier state, not a
+separate mouse-button failure:
+
+- at `2026-04-28T14:11:03`, the client received `Super_L` / Windows key down
+  and mapped it to local `15b`
+- immediately after, the client received `Alt_L` down and mapped it to local
+  `038`
+- the log tail did not show matching releases for those two keys before the
+  mouse-click symptom
+- when Windows believes `Win` / `Alt` are held, ordinary mouse clicks can behave
+  like modified clicks, which matches the user's report
+
+Immediate local recovery:
+
+- sent synthetic key-up events on Windows for common modifiers:
+  `LWin`, `RWin`, `Alt`, `LAlt`, `RAlt`, `Ctrl`, `LCtrl`, `RCtrl`, `Shift`,
+  `LShift`, and `RShift`
+- this cleared the local Windows stuck-modifier state for testing
+
+Code changes made for this follow-up:
+
+- `src/lib/inputleap/Screen.cpp`
+  - `Screen::disable()` now calls `fakeAllKeysUp()` for secondary screens even
+    if `m_entered` is false
+  - this covers keyboard-only mode where the client may receive synthetic keys
+    without a full secondary enter/leave lifecycle
+- `src/lib/server/Server.cpp`
+  - `releaseKeyboardTargetKeys()` now sends key-up for every tracked forwarded
+    key in `m_pressedKeys`
+  - it no longer filters through `pollPressedKeys()`, because the old keyboard
+    target needs releases for keys it already received even if the primary side
+    no longer reports them physically down
+- `src/lib/server/Server.cpp`
+  - `switchKeyboardScreen()` now releases forwarded keys/modifiers even when
+    the requested keyboard target is already current
+  - `followMouseForKeyboard()` does the same when the keyboard target already
+    equals the active mouse screen
+  - this specifically targets the hotkey no-op case where the switch hotkey
+    itself can be forwarded to Windows, then consumed before its release reaches
+    the Windows client
+
+Windows validation after rebuild:
+
+- rebuilt `input-leapc.exe` successfully in
+  `C:\Users\imocc\Code\InputLeap\InputLeap\build-win-debug`
+- relaunched the Windows client via
+  `C:\Users\imocc\Desktop\InputLeap Windows Client Launcher.ps1`
+- UDP discovery found the macOS server at `192.168.71.185`
+- Windows client process was running from:
+  `C:\Users\imocc\Code\InputLeap\InputLeap\build-win-debug\bin\input-leapc.exe`
+- recent log tail showed ordinary key down/up pairs returning to `mask=2000`
+  and no new stuck `Super`, `Alt`, or `Control` state
+
+Important handoff note:
+
+- the `Screen.cpp` portion is Windows-client-side and is already present in the
+  rebuilt Windows client
+- the `Server.cpp` hotkey no-op cleanup runs on the macOS server, so the macOS
+  server must be rebuilt and restarted before the full fix can be evaluated
+
 ## Bonjour / Launcher Follow-Up
 
 As of 2026-04-27, the Windows daily launcher was updated outside the repo to

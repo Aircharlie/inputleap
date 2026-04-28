@@ -17,6 +17,10 @@ keyboard-only switching investigation.
 - Result: discovery succeeded after updating the Windows launcher to enumerate
   active IPv4 interfaces, compute each interface's directed broadcast address,
   and probe those addresses before falling back to `255.255.255.255`
+- Date Windows input-state cleanup last validated: 2026-04-28
+- Result: rebuilt Windows client is running and recent logs show ordinary key
+  down/up pairs returning to `mask=2000`; no new stuck `Super` / `Alt` /
+  `Control` state was observed after the local client-side rebuild
 - Caveat: on this machine, Apple's `Bonjour Service` (`mDNSResponder.exe`
   3.1.0.1) still crashes immediately on startup, so Bonjour is not considered a
   dependable discovery option
@@ -103,6 +107,47 @@ Known practical finding:
 If UDP discovery does not find anything, check whether the server build being
 run actually includes the new responder path before spending more time on local
 Windows networking.
+
+## 2026-04-28 Input-State Handoff
+
+Observed Windows symptom:
+
+- keyboard looked recovered, but local Windows mouse clicks still behaved
+  strangely while InputLeap was running
+- the client log showed `LWin` and `LAlt` key-down events without matching
+  releases around the hotkey path
+- this can make normal mouse clicks behave like `Win`/`Alt` modified clicks, so
+  the mouse symptom is probably another expression of the same stuck modifier
+  state rather than a mouse hardware issue
+
+Windows-side changes already built:
+
+- `src/lib/inputleap/Screen.cpp`: secondary-screen `disable()` now calls
+  `fakeAllKeysUp()` even when the client was not marked as fully entered
+- `src/lib/server/Server.cpp`: keyboard-target cleanup now sends key-up for all
+  tracked forwarded keys instead of filtering by the primary's current physical
+  key poll
+- `src/lib/server/Server.cpp`: `switchKeyboardScreen()` and
+  `followMouseForKeyboard()` now release forwarded keys/modifiers even when the
+  requested target is already current
+
+Important mac-side action:
+
+- rebuild and restart the macOS server before judging the hotkey no-op fix,
+  because the `Server.cpp` cleanup path runs on the server side
+- Windows client-side rebuild is already running from
+  `build-win-debug\bin\input-leapc.exe`, but the complete fix needs the mac
+  server binary to include the matching `Server.cpp` changes
+
+Validation performed on Windows after rebuild:
+
+- stopped the old `input-leapc.exe` because it locked the executable during link
+- rebuilt `input-leapc.exe` successfully in `build-win-debug`
+- relaunched via `C:\Users\imocc\Desktop\InputLeap Windows Client Launcher.ps1`
+- UDP discovery found server `192.168.71.185`
+- current Windows process was `input-leapc.exe` from the isolated debug build
+- recent log tail showed regular key down/up pairs and no new stuck modifier
+  sequence
 
 ## Relevant Instrumentation
 
