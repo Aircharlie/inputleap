@@ -303,16 +303,16 @@ Server::adoptClient(BaseClientProxy* client)
 	}
 	LOG_NOTE("client \"%s\" has connected", getName(client).c_str());
 
+	// send configuration options to client
+	sendOptions(client);
+
     if (!m_pendingKeyboardTargetName.empty() &&
         m_pendingKeyboardTargetName == getName(client)) {
-        LOG_INFO("applying pending keyboard target \"%s\" after client activation",
+        LOG_INFO("applying pending keyboard target \"%s\" after client options",
                  m_pendingKeyboardTargetName.c_str());
         switchKeyboardScreen(client);
         m_pendingKeyboardTargetName.clear();
     }
-
-	// send configuration options to client
-	sendOptions(client);
 
 	// activate screen saver on new client if active on the primary screen
 	if (m_activeSaver != nullptr) {
