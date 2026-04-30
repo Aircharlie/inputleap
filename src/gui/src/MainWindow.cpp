@@ -105,6 +105,33 @@ QList<qint64> listeningPids(quint16 port)
     return pids;
 }
 
+QList<qint64> helperPids(const QString& app)
+{
+    const auto output = runCommandAndReadStdout("/bin/ps", {"-axo", "pid=,command="});
+
+    QList<qint64> pids;
+    for (const auto& line : output.split('\n', Qt::SkipEmptyParts)) {
+        const auto trimmed = line.trimmed();
+        const auto firstSpace = trimmed.indexOf(' ');
+        if (firstSpace <= 0) {
+            continue;
+        }
+
+        bool ok = false;
+        const qint64 pid = trimmed.left(firstSpace).toLongLong(&ok);
+        if (!ok || pid == QCoreApplication::applicationPid()) {
+            continue;
+        }
+
+        const auto command = trimmed.mid(firstSpace).trimmed();
+        if (command.startsWith(app)) {
+            pids.push_back(pid);
+        }
+    }
+
+    return pids;
+}
+
 QString processCommandLine(qint64 pid)
 {
     return runCommandAndReadStdout("/bin/ps", {"-p", QString::number(pid), "-o", "command="});
@@ -310,7 +337,11 @@ void MainWindow::createTrayIcon()
     m_pTrayIconMenu->addAction(ui_->m_pActionMinimize);
     m_pTrayIconMenu->addAction(ui_->m_pActionRestore);
     m_pTrayIconMenu->addSeparator();
-    m_pTrayIconMenu->addAction(ui_->m_pActionQuit);
+    auto* trayQuitAction = new QAction(tr("&Quit"), m_pTrayIconMenu);
+    trayQuitAction->setStatusTip(tr("Quit"));
+    trayQuitAction->setMenuRole(QAction::NoRole);
+    connect(trayQuitAction, &QAction::triggered, this, &MainWindow::quit_app);
+    m_pTrayIconMenu->addAction(trayQuitAction);
 
     m_pTrayIcon = new QSystemTrayIcon(this);
     m_pTrayIcon->setContextMenu(m_pTrayIconMenu);
@@ -392,7 +423,7 @@ void MainWindow::initConnections()
     connect(ui_->m_pActionStopCmdApp, &QAction::triggered, this, &MainWindow::stop_cmd_app);
     connect(ui_->m_pActionShowLog, &QAction::triggered, this, &MainWindow::showLogWindow);
     connect(ui_->m_pActionReload, &QAction::triggered, this, &MainWindow::restart_cmd_app);
-    connect(ui_->m_pActionQuit, &QAction::triggered, qApp, &QCoreApplication::quit);
+    connect(ui_->m_pActionQuit, &QAction::triggered, this, &MainWindow::quit_app);
 }
 
 void MainWindow::saveSettings()
@@ -623,7 +654,14 @@ void MainWindow::cleanupStaleDesktopProcess(const QString& app)
         return;
     }
 
-    const auto pids = listeningPids(appConfig().port());
+    QSet<qint64> pids;
+    for (const qint64 pid : listeningPids(appConfig().port())) {
+        pids.insert(pid);
+    }
+    for (const qint64 pid : helperPids(app)) {
+        pids.insert(pid);
+    }
+
     for (const qint64 pid : pids) {
         if (pid == QCoreApplication::applicationPid()) {
             continue;
@@ -929,6 +967,12 @@ void MainWindow::stop_cmd_app()
 
     // reset so that new connects cause auto-hide.
     m_AlreadyHidden = false;
+}
+
+void MainWindow::quit_app()
+{
+    stop_cmd_app();
+    QCoreApplication::quit();
 }
 
 void MainWindow::stopService()
