@@ -738,8 +738,11 @@ void MainWindow::start_cmd_app()
     QString app;
     QStringList args;
 
-    args << "-f" << "--no-tray" << "--debug" << appConfig().logLevelText();
+    args << "-f" << "--no-tray";
 
+#ifndef NDEBUG
+    args << "--debug" << appConfig().logLevelText();
+#endif
 
     args << "--name" << getScreenName();
 
