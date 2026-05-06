@@ -255,6 +255,11 @@ MainWindow::MainWindow(QSettings& settings, AppConfig& appConfig) :
 
     updateSSLFingerprint();
 
+    m_ProcessHealthTimer = new QTimer(this);
+    m_ProcessHealthTimer->setInterval(5000);
+    connect(m_ProcessHealthTimer, &QTimer::timeout, this, &MainWindow::checkDesktopProcessHealth);
+    m_ProcessHealthTimer->start();
+
     connect(ui_->toolbutton_show_fingerprint, &QToolButton::clicked, this, [this](bool checked)
     {
         (void) checked;
@@ -647,6 +652,42 @@ void MainWindow::proofreadInfo()
     set_connection_state(old);
 }
 
+void MainWindow::checkDesktopProcessHealth()
+{
+#if SYSAPI_UNIX
+    if (app_role() != AppRole::Server ||
+        appConfig().processMode() != Desktop ||
+        m_ExpectedRunningState != kStarted ||
+        cmd_app_process_ == nullptr ||
+        m_RestartPending) {
+        return;
+    }
+
+    if (cmd_app_process_->state() == QProcess::NotRunning) {
+        return;
+    }
+
+    // The helper may need a few seconds to initialize the primary screen before binding.
+    if (m_ProcessStartedAt.isValid() && m_ProcessStartedAt.elapsed() < 10000) {
+        return;
+    }
+
+    const qint64 helperPid = cmd_app_process_->processId();
+    for (const qint64 pid : listeningPids(appConfig().port())) {
+        if (pid == helperPid) {
+            return;
+        }
+    }
+
+    appendLogError(QString("server helper pid %1 is running but not listening on port %2; restarting")
+                       .arg(helperPid)
+                       .arg(appConfig().port()));
+    restart_cmd_app();
+#else
+    return;
+#endif
+}
+
 void MainWindow::cleanupStaleDesktopProcess(const QString& app)
 {
 #if SYSAPI_UNIX
@@ -785,6 +826,7 @@ void MainWindow::start_cmd_app()
             QMessageBox::warning(this, tr("Program can not be started"), QString(tr("The executable<br><br>%1<br><br>could not be successfully started, although it does exist. Please check if you have sufficient permissions to run this program.").arg(app)));
             return;
         }
+        m_ProcessStartedAt.restart();
     }
 
     if (serviceMode)

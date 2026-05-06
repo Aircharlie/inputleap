@@ -23,6 +23,7 @@
 
 #include <QMainWindow>
 #include <QSystemTrayIcon>
+#include <QElapsedTimer>
 #include <QSettings>
 #include <QProcess>
 #include <QThread>
@@ -164,6 +165,7 @@ public slots:
         void checkFingerprint(const QString& line);
         void restart_cmd_app();
         void proofreadInfo();
+        void checkDesktopProcessHealth();
         void windowStateChanged();
         void updateSSLFingerprint();
 
@@ -196,6 +198,8 @@ public slots:
         QStringList m_PendingClientNames;
         LogWindow *m_pLogWindow;
         bool m_RestartPending = false;
+        QElapsedTimer m_ProcessStartedAt;
+        QTimer* m_ProcessHealthTimer = nullptr;
 
         bool m_fingerprint_expanded = false;
 
