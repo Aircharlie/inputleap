@@ -33,6 +33,26 @@
 
 namespace inputleap {
 
+namespace {
+
+UINT punctuationFallbackVirtualKey(KeyID id)
+{
+    switch (id) {
+    case 0x3001: // IDEOGRAPHIC COMMA
+    case 0xff0c: // FULLWIDTH COMMA
+        return VK_OEM_COMMA;
+
+    case 0x3002: // IDEOGRAPHIC FULL STOP
+    case 0xff0e: // FULLWIDTH FULL STOP
+        return VK_OEM_PERIOD;
+
+    default:
+        return 0;
+    }
+}
+
+} // namespace
+
 // map virtual keys to InputLeap key enumeration
 const KeyID				MSWindowsKeyState::s_virtualKey[] =
 {
@@ -773,12 +793,36 @@ void
 MSWindowsKeyState::fakeKeyDown(KeyID id, KeyModifierMask mask,
 				KeyButton button)
 {
+    const UINT punctuationVK = punctuationFallbackVirtualKey(id);
+    if (punctuationVK != 0 && mapKeyToVirtualKey(id) == 0) {
+        const KeyButton punctuationButton = virtualKeyToButton(punctuationVK);
+        if (punctuationButton != 0) {
+            LOG_DEBUG1("punctuation fallback for unmapped key %04x via vk=%03x", id, punctuationVK);
+            m_desks->fakeKeyEvent(punctuationButton, punctuationVK, true, false);
+            m_desks->fakeKeyEvent(punctuationButton, punctuationVK, false, false);
+            return;
+        }
+    }
+
 	KeyState::fakeKeyDown(id, mask, button);
 }
 
 bool MSWindowsKeyState::fakeKeyRepeat(KeyID id, KeyModifierMask mask, std::int32_t count,
                                       KeyButton button)
 {
+    const UINT punctuationVK = punctuationFallbackVirtualKey(id);
+    if (punctuationVK != 0 && mapKeyToVirtualKey(id) == 0) {
+        const KeyButton punctuationButton = virtualKeyToButton(punctuationVK);
+        if (punctuationButton != 0) {
+            LOG_DEBUG1("punctuation fallback repeat for unmapped key %04x via vk=%03x count=%d",
+                       id, punctuationVK, count);
+            for (std::int32_t i = 0; i < count; ++i) {
+                m_desks->fakeKeyEvent(punctuationButton, punctuationVK, true, true);
+            }
+            return true;
+        }
+    }
+
 	return KeyState::fakeKeyRepeat(id, mask, count, button);
 }
 
