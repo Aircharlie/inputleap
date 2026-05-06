@@ -51,6 +51,58 @@ UINT punctuationFallbackVirtualKey(KeyID id)
     }
 }
 
+UINT navigationFallbackVirtualKey(KeyID id)
+{
+    switch (id) {
+    case kKeyHome:
+    case kKeyKP_Home:
+        return VK_HOME;
+
+    case kKeyLeft:
+    case kKeyKP_Left:
+        return VK_LEFT;
+
+    case kKeyUp:
+    case kKeyKP_Up:
+        return VK_UP;
+
+    case kKeyRight:
+    case kKeyKP_Right:
+        return VK_RIGHT;
+
+    case kKeyDown:
+    case kKeyKP_Down:
+        return VK_DOWN;
+
+    case kKeyPageUp:
+    case kKeyKP_PageUp:
+        return VK_PRIOR;
+
+    case kKeyPageDown:
+    case kKeyKP_PageDown:
+        return VK_NEXT;
+
+    case kKeyEnd:
+    case kKeyKP_End:
+        return VK_END;
+
+    case kKeyBegin:
+    case kKeyKP_Begin:
+        return VK_CLEAR;
+
+    case kKeyInsert:
+    case kKeyKP_Insert:
+        return VK_INSERT;
+
+    case kKeyDelete:
+    case kKeyKP_Delete:
+        return VK_DELETE;
+
+    default:
+        return 0;
+    }
+}
+
 } // namespace
 
 // map virtual keys to InputLeap key enumeration
@@ -793,6 +845,16 @@ void
 MSWindowsKeyState::fakeKeyDown(KeyID id, KeyModifierMask mask,
 				KeyButton button)
 {
+    const UINT navigationVK = navigationFallbackVirtualKey(id);
+    if (navigationVK != 0) {
+        const KeyButton navigationButton = virtualKeyToButton(navigationVK);
+        if (navigationButton != 0) {
+            LOG_DEBUG1("navigation fallback for key %04x via vk=%03x", id, navigationVK);
+            KeyState::fakeKeyDown(id, mask, navigationButton);
+            return;
+        }
+    }
+
     const UINT punctuationVK = punctuationFallbackVirtualKey(id);
     if (punctuationVK != 0 && mapKeyToVirtualKey(id) == 0) {
         const KeyButton punctuationButton = virtualKeyToButton(punctuationVK);
@@ -810,6 +872,16 @@ MSWindowsKeyState::fakeKeyDown(KeyID id, KeyModifierMask mask,
 bool MSWindowsKeyState::fakeKeyRepeat(KeyID id, KeyModifierMask mask, std::int32_t count,
                                       KeyButton button)
 {
+    const UINT navigationVK = navigationFallbackVirtualKey(id);
+    if (navigationVK != 0) {
+        const KeyButton navigationButton = virtualKeyToButton(navigationVK);
+        if (navigationButton != 0) {
+            LOG_DEBUG1("navigation fallback repeat for key %04x via vk=%03x count=%d",
+                       id, navigationVK, count);
+            return KeyState::fakeKeyRepeat(id, mask, count, navigationButton);
+        }
+    }
+
     const UINT punctuationVK = punctuationFallbackVirtualKey(id);
     if (punctuationVK != 0 && mapKeyToVirtualKey(id) == 0) {
         const KeyButton punctuationButton = virtualKeyToButton(punctuationVK);
