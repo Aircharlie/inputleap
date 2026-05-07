@@ -25,10 +25,44 @@
 #include "MSWindowsServerTaskBarReceiver.h"
 #endif
 
+#if SYSAPI_UNIX
+#include <chrono>
+#include <cstdlib>
+#include <signal.h>
+#include <thread>
+#include <unistd.h>
+#endif
+
 namespace inputleap {
 
 #if WINAPI_XWINDOWS || WINAPI_LIBEI || WINAPI_CARBON
 CreateTaskBarReceiverFunc createTaskBarReceiver = nullptr;
+#endif
+
+#if SYSAPI_UNIX
+void startGuiParentMonitor()
+{
+    const char* parentPidValue = std::getenv("INPUTLEAP_GUI_PARENT_PID");
+    if (parentPidValue == nullptr || parentPidValue[0] == '\0') {
+        return;
+    }
+
+    char* end = nullptr;
+    const long parentPid = std::strtol(parentPidValue, &end, 10);
+    if (end == parentPidValue || *end != '\0' || parentPid <= 1) {
+        return;
+    }
+
+    std::thread([parentPid]() {
+        while (true) {
+            std::this_thread::sleep_for(std::chrono::seconds(2));
+            if (::kill(static_cast<pid_t>(parentPid), 0) != 0) {
+                ::kill(::getpid(), SIGTERM);
+                return;
+            }
+        }
+    }).detach();
+}
 #endif
 
 int server_main(int argc, char** argv)
@@ -43,6 +77,10 @@ int server_main(int argc, char** argv)
     herring that causes a lot of issues to be filed for the MacOS client/server.
     */
     setenv("OS_ACTIVITY_DT_MODE", "NO", true);
+#endif
+
+#if SYSAPI_UNIX
+    startGuiParentMonitor();
 #endif
 
     Arch arch;

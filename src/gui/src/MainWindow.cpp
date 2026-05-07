@@ -797,6 +797,9 @@ void MainWindow::start_cmd_app()
     if (desktopMode) {
         cleanupStaleDesktopProcess(app);
         cmd_app_process_ = new QProcess(this);
+        auto environment = QProcessEnvironment::systemEnvironment();
+        environment.insert("INPUTLEAP_GUI_PARENT_PID", QString::number(QCoreApplication::applicationPid()));
+        cmd_app_process_->setProcessEnvironment(environment);
     }
 
     if (desktopMode)
