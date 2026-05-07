@@ -1297,6 +1297,56 @@ OSXScreen::onKey(CGEventRef event)
 }
 
 void
+OSXScreen::onKeyHotKeyOnly(CGEventRef event)
+{
+	CGEventType eventKind = CGEventGetType(event);
+	std::uint32_t virtualKey = CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode);
+	CGEventFlags macMask = CGEventGetFlags(event);
+
+	if (eventKind == kCGEventFlagsChanged) {
+		KeyModifierMask newMask = m_keyState->mapModifiersFromOSX(macMask);
+
+		if (m_activeModifierHotKey == 0) {
+			if (m_modifierHotKeys.count(newMask) > 0) {
+				m_activeModifierHotKey     = m_modifierHotKeys[newMask];
+				m_activeModifierHotKeyMask = newMask;
+				m_events->add_event(EventType::PRIMARY_SCREEN_HOTKEY_DOWN, get_event_target(),
+									create_event_data<HotKeyInfo>(HotKeyInfo{m_activeModifierHotKey}));
+			}
+		}
+		else {
+			KeyModifierMask mask = (newMask & m_activeModifierHotKeyMask);
+			if (mask != m_activeModifierHotKeyMask) {
+				m_events->add_event(EventType::PRIMARY_SCREEN_HOTKEY_UP, get_event_target(),
+									create_event_data<HotKeyInfo>(HotKeyInfo{m_activeModifierHotKey}));
+				m_activeModifierHotKey     = 0;
+				m_activeModifierHotKeyMask = 0;
+			}
+		}
+
+		return;
+	}
+
+	auto i = m_hotKeyToIDMap.find(HotKeyItem(virtualKey, m_keyState->mapModifiersToCarbon(macMask) & 0xff00u));
+	if (i == m_hotKeyToIDMap.end()) {
+		return;
+	}
+
+	EventType type;
+	if (eventKind == kCGEventKeyDown) {
+		type = EventType::PRIMARY_SCREEN_HOTKEY_DOWN;
+	}
+	else if (eventKind == kCGEventKeyUp) {
+		type = EventType::PRIMARY_SCREEN_HOTKEY_UP;
+	}
+	else {
+		return;
+	}
+
+	m_events->add_event(type, get_event_target(), create_event_data<HotKeyInfo>(HotKeyInfo{i->second}));
+}
+
+void
 OSXScreen::onMediaKey(CGEventRef event)
 {
 	KeyID keyID;
@@ -1889,6 +1939,10 @@ OSXScreen::handleCGInputEvent(CGEventTapProxy proxy,
 		case kCGEventKeyDown:
 		case kCGEventKeyUp:
 		case kCGEventFlagsChanged:
+			if (!screen->m_suppressLocalKeyboardInput && screen->m_isOnScreen) {
+				screen->onKeyHotKeyOnly(event);
+				return event;
+			}
 			screen->onKey(event);
 			if (screen->m_suppressLocalKeyboardInput) {
 				return nullptr;

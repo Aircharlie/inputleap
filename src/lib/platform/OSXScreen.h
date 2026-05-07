@@ -125,6 +125,7 @@ private:
     // of the button pressed using the mac button mapping.
     bool onMouseButton(bool pressed, std::uint16_t macButton);
     bool onMouseWheel(std::int32_t xDelta, std::int32_t yDelta) const;
+    void onKeyHotKeyOnly(CGEventRef event);
 
     void constructMouseButtonEventMap();
 
